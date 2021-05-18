@@ -1,36 +1,41 @@
-const container = document.querySelector('.container');
+const mainContainer = document.querySelector('#content-container');
 
 function loadBitmovinPlayer(playerContainer) {
-    var config =   {
-        key: "<PLAYER-KEY>",
-        playback: {
-            muted: true,
-            autoplay: false,
-          },
-    }
-    var source = {
-        hls: "https://bitmovin-a.akamaihd.net/content/MI201109210084_1/m3u8s/f08e80da-bf1d-4e3d-8899-f0f6155f6efa.m3u8"
-    }
-    var player = new bitmovin.player.Player(playerContainer, config);
-    player.load(source).then(
-        function() {
-            //Success
-            console.log('Source loaded successfully');
-          },
-        function(reason) {
-            //Error
-            console.log('Error loading source');
-          }
-        );
+  var config =   {
+      key: "<PLAYER-KEY>",
+      playback: {
+          muted: true,
+          autoplay: false,
+        },
+  }
+  var source = {
+      hls: "https://bitmovin-a.akamaihd.net/content/MI201109210084_1/m3u8s/f08e80da-bf1d-4e3d-8899-f0f6155f6efa.m3u8"
+  }
+  var player = new bitmovin.player.Player(playerContainer, config);
+  player.load(source).then(
+      function() {
+          //Success
+          console.log('Source loaded successfully');
+        },
+      function(reason) {
+          //Error
+          console.log('Error loading source');
+        }
+      );
 }
 
-
+function nodeListToArray(nodeList)
+{
+  let array = [];
+  nodeList.forEach(node => array.push(node));
+  return array;
+}
 function loadPlayer(startPosY = 0) {
    let i=0;
     const playerContainer = document.createElement('div');
     playerContainer.id = 'player-container-' + startPosY;
     playerContainer.classList.add('player_container');
-    container.appendChild(playerContainer);
+    mainContainer.appendChild(playerContainer);
     loadBitmovinPlayer(playerContainer);
 }
 
@@ -43,7 +48,8 @@ function getPlayerIndex(container)
   // get index of the player that is loaded in the container
   //  or -1 if this is not found:
   for (let i = 0; i < players.length; i++)
-    if (players[i].containerIndex == container.dataset.index) {
+    if (players[i].containerIndex ==
+      parseInt(container.dataset.index)) {
       playerIndex = i;
       break;
     }
@@ -62,22 +68,25 @@ const players = [];
 
 function scrollYBellowMargin()
 {
-  return window.scrollY + window.innerHeight + 1 >=
-    document.documentElement.scrollHeight);
+  return window.scrollY + window.innerHeight >=
+    0.95 * document.documentElement.scrollHeight;
 }
 
 // returns array of visible player containers
-function getVisiblePlayerContainers()
+function getVisiblePlayerContainerIndices()
 {
-  return document.querySelector(".playerContainer")
-    .filter(container =>
-      0 < container.y && container.y < window.innerHeight);
+  return nodeListToArray(
+    document.querySelectorAll(".player_container"))
+      .filter(container =>
+        0 < container.getBoundingClientRect().y &&
+        container.getBoundingClientRect().y < window.innerHeight)
+      .map(container => parseInt(container.dataset.index));
 }
 
 function getPlayerContainerByIndex(index)
 {
   return document.querySelector(
-    `.playerContainer[data-index="${index}"]`);
+    `.player_container[data-index="${index}"]`);
 }
 
 function createPlayerContainer()
@@ -86,11 +95,19 @@ function createPlayerContainer()
   //   eliminated by a state managment pattern. This is a minimal
   //   example, and for this purpose such considerations are
   //   neglected
-  let lastIndex = document.querySelectorAll(".playerContainer")
-    .reduce(acum, container) =>
-      Math.max(acum, parseInt(container.dataset.index));
+  let lastIndex = -1;
+  let playerContainers = nodeListToArray(
+    document.querySelectorAll(".player_container"));
+  console.log("createPlayerContainer(): player containers",
+    playerContainers);
+  if (playerContainers.length)
+    playerContainers
+      .reduce(
+        (acum, container) =>
+          Math.max(acum, parseInt(container.dataset.index)),
+        0);
   let container = document.createElement("div");
-  container.classList.push("playerContainer");
+  container.classList.add("player_container");
   container.dataset.index = lastIndex + 1;
   return container;
 }
@@ -113,7 +130,9 @@ function attachPlayers(visibleContainersIndices)
   // form containersWithoutPlayer and availablePlayersIndices:
   let unavailablePlayerIndices = [];
   let containersWithoutPlayer = [];
-  for (let containerIndex of intervalOfContainersToFill)
+  for (let containerIndex of intervalOfContainersToFill) {
+    let playerIndex = getPlayerIndex(
+      getPlayerContainerByIndex(containerIndex));
     if (playerIndex == -1)
       containersWithoutPlayer.push(containerIndex);
     else unavailablePlayersIndices.push(playerIndex);
@@ -136,15 +155,18 @@ function attachPlayers(visibleContainersIndices)
       //  from the previous container, attach to new container:
       let playerIndex = availablePlayersIndices.pop();
       player = players[playerIndex];
-      getContainerByIndex(player.containerIndex).removeChild(player);
+      getPlayerContainerByIndex(player.containerIndex).removeChild(player);
       player.containerIndex = containerIndex;
     }
-    getContainerByIndex(containerIndex).appendChild(player);
+    getPlayerContainerByIndex(containerIndex).appendChild(player);
   }
 }
 
 // listen for scroll event and load more images if we reach the bottom of window
-window.addEventListener('scroll',()=>{
+window.addEventListener('scroll',onScroll);
+
+function onScroll()
+{
   // scrollY - window scroll from top
   // innerHeight - height of window
   console.log(
@@ -160,13 +182,14 @@ window.addEventListener('scroll',()=>{
   const visiblePlayerContainerIndices =
     getVisiblePlayerContainerIndices();
 
-  attachPlayers(visiblePlayerContainers);
+  attachPlayers(visiblePlayerContainerIndices);
 
   for (let container of visiblePlayerContainers)
   {
     let player = players[getPlayerIndex(container)].bitmovinPlayer;
-    if (if player.isPaused()) {
-      player.seek(container.dataset.seek);
+    if (player.isPaused()) {
+      player.seek(parseInt(container.dataset.seek));
+      player.play();
     }
   }
-});
+}
