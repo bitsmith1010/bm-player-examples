@@ -134,21 +134,21 @@ function attachPlayers(visibleContainersIndices)
       getPlayerContainerByIndex(containerIndex));
     if (playerIndex == -1)
       containersWithoutPlayer.push(containerIndex);
-    else unavailablePlayersIndices.push(playerIndex);
+    else unavailablePlayerIndices.push(playerIndex);
   }
   let availablePlayersIndices = players.filter((player,playerIndex) =>
-    unavailablePlayersIndices.indexOf(playerIndex) == -1);
+    unavailablePlayerIndices.indexOf(playerIndex) == -1);
 
   for (let containerIndex of containersWithoutPlayer) {
     let player;
     // if no available players, then there are less than 4
     //  players in the pool, another player can be added to the pool:
     if (availablePlayersIndices.length == 0) {
-      playerElement = document.createElement("div");
       // class playerInPool { bitmovinPlayer, containerIndex }
       //  constructor - to load a BitmovinPlayer in the div
-      player = new PlayerInPool(playerElement);
+      player = new PlayerInPool();
       player.containerIndex = containerIndex;
+      players.push(player);
     } else {
       // if there are players available, detatch the player
       //  from the previous container, attach to new container:
@@ -163,33 +163,49 @@ function attachPlayers(visibleContainersIndices)
 }
 
 // listen for scroll event and load more images if we reach the bottom of window
-window.addEventListener('scroll',onScroll);
+window.addEventListener('scroll',createOnScroll());
 
-function onScroll()
-{
-  // scrollY - window scroll from top
-  // innerHeight - height of window
-  console.log(
-    "scrolled:", window.scrollY,
-    "height of window:", window.innerHeight,
-    "sum:", window.scrollY + window.innerHeight,
-    "scrollHeight:", document.documentElement.scrollHeight);
-
-  if (scrollYBellowMargin())
-    mainContainer.appendChild(createPlayerContainer());
-    
-  // find the containers that have the focus:
-  const visiblePlayerContainerIndices =
-    getVisiblePlayerContainerIndices();
-
-  attachPlayers(visiblePlayerContainerIndices);
-
-  for (let container of visiblePlayerContainers)
+function createOnScroll()
+{ 
+  // unit of measurement: occurrences per second
+  const maxScrollFrequency= 1.0;
+  let prevTime = 0;
+  let numberOfScrollEvents = 0;
+  return function()
   {
-    let player = players[getPlayerIndex(container)].bitmovinPlayer;
-    if (player.isPaused()) {
-      player.seek(parseInt(container.dataset.seek));
-      player.play();
+    if (Date.now() - prevTime < 1000 * 1 / maxScrollFrequency)
+     return;
+    prevTime = Date.now(); console.log("!!!");
+    // scrollY - window scroll from top
+    // innerHeight - height of window
+    console.log(
+      "scrolled:", window.scrollY,
+      "height of window:", window.innerHeight,
+      "sum:", window.scrollY + window.innerHeight,
+      "scrollHeight:", document.documentElement.scrollHeight);
+  
+    if (scrollYBellowMargin()) {
+      mainContainer.appendChild(createPlayerContainer());
+      mainContainer.appendChild(createPlayerContainer());
+    }
+      
+    // find the containers that have the focus:
+    const visiblePlayerContainerIndices =
+      getVisiblePlayerContainerIndices();
+  
+    attachPlayers(visiblePlayerContainerIndices);
+  
+    for (let containerIndex of visiblePlayerContainerIndices)
+    {
+      let player = players[getPlayerIndex(
+        getPlayerContainerByIndex(containerIndex))].bitmovinPlayer;
+      if (player.isPaused()) {
+        player.seek(parseInt(container.dataset.seek));
+        player.play();
+      }
     }
   }
 }
+
+mainContainer.appendChild(createPlayerContainer());
+mainContainer.appendChild(createPlayerContainer());
