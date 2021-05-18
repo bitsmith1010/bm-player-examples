@@ -68,7 +68,7 @@ const players = [];
 
 function scrollYBellowMargin()
 {
-  return window.scrollY + window.innerHeight >=
+  return window.scrollY + window.innerHeight >
     0.95 * document.documentElement.scrollHeight;
 }
 
@@ -98,10 +98,8 @@ function createPlayerContainer()
   let lastIndex = -1;
   let playerContainers = nodeListToArray(
     document.querySelectorAll(".player_container"));
-  console.log("createPlayerContainer(): player containers",
-    playerContainers);
   if (playerContainers.length)
-    playerContainers
+    lastIndex = playerContainers
       .reduce(
         (acum, container) =>
           Math.max(acum, parseInt(container.dataset.index)),
