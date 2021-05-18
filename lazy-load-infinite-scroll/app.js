@@ -67,7 +67,7 @@ function PlayerInPool()
 // players: an array of PlayerInPool elements
 const players = [];
 
-function scrollYBellowMargin()
+function scrollYBelowMargin()
 {
   return window.scrollY + window.innerHeight >
     0.95 * document.documentElement.scrollHeight;
@@ -119,25 +119,33 @@ function attachPlayers(visibleContainersIndices)
   //   as the extremes would be loaded but paused
   //   initially, some of the corresponding containers
   //   have a player that is loaded, and others no
+
   let intervalOfContainersToFill = [
+    Math.min(...visibleContainersIndices) - 1,
     ...visibleContainersIndices,
     Math.max(...visibleContainersIndices) + 1
   ];
-  let minIndex = Math.min(...visibleContainersIndices);
-  if (minIndex > 0) intervalOfContainersToFill.push(minIndex - 1);
 
   // form containersWithoutPlayer and availablePlayersIndices:
   let unavailablePlayerIndices = [];
   let containersWithoutPlayer = [];
   for (let containerIndex of intervalOfContainersToFill) {
-    let playerIndex = getPlayerIndex(
-      getPlayerContainerByIndex(containerIndex));
-    if (playerIndex == -1)
-      containersWithoutPlayer.push(containerIndex);
-    else unavailablePlayerIndices.push(playerIndex);
+    // if player container exists, check if there is a player attached to it
+    if (getPlayerContainerByIndex(containerIndex)) {
+      let playerIndex = getPlayerIndex(
+        getPlayerContainerByIndex(containerIndex));
+      if (playerIndex == -1)
+        containersWithoutPlayer.push(containerIndex);
+      else unavailablePlayerIndices.push(playerIndex);
+    }
   }
-  let availablePlayersIndices = players.filter((player,playerIndex) =>
-    unavailablePlayerIndices.indexOf(playerIndex) == -1);
+
+    let availablePlayersIndices = players.reduce(function(acc, player, playerIndex) {
+      if (unavailablePlayerIndices.indexOf(playerIndex) == -1) {
+        acc.push(playerIndex)
+      }
+      return acc;
+    }, []);
 
   for (let containerIndex of containersWithoutPlayer) {
     let player;
@@ -154,7 +162,7 @@ function attachPlayers(visibleContainersIndices)
       //  from the previous container, attach to new container:
       let playerIndex = availablePlayersIndices.pop();
       player = players[playerIndex];
-      getPlayerContainerByIndex(player.containerIndex).removeChild(player);
+      getPlayerContainerByIndex(player.containerIndex).removeChild(player.bitmovinPlayer.getContainer());
       player.containerIndex = containerIndex;
     }
     getPlayerContainerByIndex(containerIndex).appendChild(
@@ -184,28 +192,31 @@ function createOnScroll()
       "sum:", window.scrollY + window.innerHeight,
       "scrollHeight:", document.documentElement.scrollHeight);
   
-    if (scrollYBellowMargin()) {
+    if (scrollYBelowMargin()) {
       mainContainer.appendChild(createPlayerContainer());
       mainContainer.appendChild(createPlayerContainer());
     }
-      
-    // find the containers that have the focus:
-    const visiblePlayerContainerIndices =
-      getVisiblePlayerContainerIndices();
+    createAndAttachPlayers();
+  }
+}
+
+function createAndAttachPlayers () {
+  // find the containers that have the focus:
+  const visiblePlayerContainerIndices =
+  getVisiblePlayerContainerIndices();
   
-    attachPlayers(visiblePlayerContainerIndices);
+  attachPlayers(visiblePlayerContainerIndices);
   
-    for (let containerIndex of visiblePlayerContainerIndices)
-    {
-      let player = players[getPlayerIndex(
+  for (let containerIndex of visiblePlayerContainerIndices) {
+    let player = players[getPlayerIndex(
         getPlayerContainerByIndex(containerIndex))].bitmovinPlayer;
-      if (player.isPaused()) {
+    if (player.isPaused()) {
         player.seek(parseInt(container.dataset.seek));
         player.play();
-      }
     }
   }
 }
 
 mainContainer.appendChild(createPlayerContainer());
 mainContainer.appendChild(createPlayerContainer());
+createAndAttachPlayers();
