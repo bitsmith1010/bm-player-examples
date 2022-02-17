@@ -1,5 +1,5 @@
 var playerConfig = {
-  key: process.env.DATA0,
+  key: "BITMOVIN-LICENSE-KEY",
   advertising: {
     adBreaks: [
       {
